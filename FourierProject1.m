@@ -1,47 +1,103 @@
+
 clear all
 close all
-%% 1D
+clc
+
+%% ----------------- 1D Fourier Transform -----------------
 x1 = 0:1:250;
 t1 = 50;
 t2 = 20;
 
-Fs = 20;
-T = 1/Fs;
-L = 1000;
-t = (0:L-1)*T;
-y1 = exp(-t./t1).*sin(2*2*pi*t);
-y2 = exp(-t./t2).*sin(5*2*pi*t);
-y3 = y1+y2;
-X = y3 + randn(size(t));
+Fs = 20;           % Sampling frequency
+T = 1/Fs;          % Sampling period
+L = 1000;          % Length of signal
+t = (0:L-1)*T;     % Time vector
 
+% Signals
+y1 = exp(-t./t1).*sin(2*2*pi*t);    % 2 Hz damped sine
+y2 = exp(-t./t2).*sin(5*2*pi*t);    % 5 Hz damped sine
+y3 = y1 + y2;                       % Combined signal
+X = y3 + randn(size(t));           % Add Gaussian noise
+
+% Plot y1
 figure()
 plot(t, y1)
-hold on
+xlabel('Time (s)')
+ylabel('Amplitude')
+title('y_1(t) = e^{-t/t1} \cdot sin(4\pi t)  [2 Hz]')
+grid on
+
+% Plot y2
 figure()
-plot(t,y2)
+plot(t, y2)
+xlabel('Time (s)')
+ylabel('Amplitude')
+title('y_2(t) = e^{-t/t2} \cdot sin(10\pi t)  [5 Hz]')
+grid on
+
+% Plot combined signal y3
 figure()
-plot(t,y3)
+plot(t, y3)
+xlabel('Time (s)')
+ylabel('Amplitude')
+title('Combined Signal y_3(t) = y_1 + y_2')
+grid on
+
+% Plot noisy signal
 figure()
-plot(t,X)
+plot(t, X)
+xlabel('Time (s)')
+ylabel('Amplitude')
+title('Noisy Signal X(t) = y_3 + noise')
+grid on
+
+% FFT
 Y = fft(X);
-figure()
-plot(Fs/L*(0:L-1),abs(Y))
-f = Fs/L*(0:(L/2));
-P2 = abs(Y/L);
-P1 = P2(1:L/2+1);
-P1(2:end-1) = 2*P1(2:end-1);
-Z = ifft(Y)
+f = Fs*(0:(L/2))/L;           % One-sided frequency axis
+P2 = abs(Y/L);                % Two-sided spectrum
+P1 = P2(1:L/2+1);             % One-sided spectrum
+P1(2:end-1) = 2*P1(2:end-1);  % Adjust amplitude
 
-
-% Plot the magnitude spectrum
+% Plot magnitude spectrum and annotate frequency peaks
 figure(); 
 plot(f, P1); 
-title('Magnitude Spectrum of y3');
-xlabel('Normalized Frequency'); 
+xlabel('Frequency (Hz)'); 
 ylabel('|Y(f)|');
+title('Magnitude Spectrum with Peak Annotations');
 grid on
+hold on
+
+% Peak detection with threshold to avoid noise peaks
+[peaks, locs] = findpeaks(P1, f, 'MinPeakHeight', max(P1)*0.3);
+
+% Plot and label each detected peak
+for i = 1:length(locs)
+    % Draw a red circle at the peak
+    plot(locs(i), peaks(i), 'ro', 'MarkerSize', 10, 'LineWidth', 1.5);
+    
+    % Label the peak
+    if abs(locs(i) - 2) < 0.5
+        label = '2 Hz (y_1)';
+    elseif abs(locs(i) - 5) < 0.5
+        label = '5 Hz (y_2)';
+    else
+        label = sprintf('%.2f Hz', locs(i));
+    end
+    
+    text(locs(i)+0.2, peaks(i), label, 'Color', 'red', ...
+        'FontWeight', 'bold', 'FontSize', 10);
+end
+
+
+% Inverse FFT reconstruction
+Z = ifft(Y);
 figure()
-plot(t,Z)
+plot(t, real(Z))
+xlabel('Time (s)')
+ylabel('Amplitude')
+title('Reconstructed Signal from Inverse FFT of X(t)')
+grid on
+
 
 %% 2D
 % Create checkerboard image
@@ -155,3 +211,13 @@ img_highpass = real(ifft2(F_highpass_unshift));
 figure;
 imshow(img_highpass, []);
 title('High-Pass Filtered Image');
+% FFT of low-pass filtered image
+F_after_lowpass = fftshift(fft2(real(filtered_img)));
+figure;
+imshow(log(1 + abs(F_after_lowpass)), []);
+title('Fourier Transform After Low-Pass Filtering');
+% FFT of high-pass filtered image
+F_after_highpass = fftshift(fft2(img_highpass));
+figure;
+imshow(log(1 + abs(F_after_highpass)), []);
+title('Fourier Transform After High-Pass Filtering');
